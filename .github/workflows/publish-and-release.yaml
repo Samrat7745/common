@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2021 - for information on the respective copyright owner
+# Copyright (c) 2021-2026 - for information on the respective copyright owner
 # see the NOTICE file and/or the repository https://github.com/carbynestack/common.
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -14,20 +14,23 @@ on:
       - completed
   workflow_dispatch:
 
+# A Go module is consumed straight from the repository, so there is no artifact
+# to build or deploy. This workflow tags the commit with a pre-release version
+# of BASE_VERSION that the Go tooling recognises, and publishes a release for
+# it.
+env:
+  BASE_VERSION: "0.3.0"
+
 jobs:
   prepare:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-20.04
     outputs:
-      VERSION: "${{ steps.maven-project.outputs.version }}-${{ github.run_id }}-${{ github.run_number }}-${{ steps.short-sha.outputs.sha }}"
+      VERSION: "v${{ env.BASE_VERSION }}-${{ github.run_id }}-${{ github.run_number }}-${{ steps.short-sha.outputs.sha }}"
     steps:
       - name: Parse short sha
         uses: benjlevesque/short-sha@v1.2
         id: short-sha
-      - uses: actions/checkout@v2
-      - name: Get Maven project version
-        run: echo ::set-output name=version::$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
-        id: maven-project
   draft-release:
     runs-on: ubuntu-20.04
     needs: [ prepare ]
@@ -47,7 +50,8 @@ jobs:
           split(a[2],b,"/"); \
           system("xargs < " $0 " curl --create-dirs -Lo " a[1] "/3RD-PARTY-LICENSES/sources/" b[2] ".zip " $2)}' && \
           find -regex '.*3RD-PARTY-LICENSES/sources$' | awk '{system("zip -jr " $0 "/../$(cat "$0"/../module.name)-3rd-party-sources.zip " $0)}'
-          mkdir -p license-obligations && mv `find . -name "*-3rd-party-*.zip"` license-obligations/
+          mkdir -p license-obligations
+          find . -name "*-3rd-party-*.zip" -not -path "./license-obligations/*" -exec mv {} license-obligations/ \;
       - name: Generate change log
         run: |
           chmod +x .github/scripts/generate-changelog.sh
@@ -69,26 +73,6 @@ jobs:
     env:
       VERSION: "${{ needs.prepare.outputs.VERSION }}"
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v2
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'maven'
-      - name: Setting up Github Package Repository as Maven Repository
-        uses: s4u/maven-settings-action@v2
-        with:
-          githubServer: false
-          servers: |
-            [{
-              "id": "github",
-              "username": "${{ secrets.GHPR_USERNAME }}",
-              "password": "${{ secrets.GHPR_TOKEN }}"
-            }]
-      - name: Update Maven project version
-        run: mvn versions:set -DnewVersion=${{ env.VERSION }} -DprocessAllModules -DgenerateBackupPoms=false
-      - name: Publish SNAPSHOT version to GitHub Packages
-        run: mvn deploy -Dskip.tests --batch-mode --no-transfer-progress
       - name: Publish release
         uses: ncipollo/release-action@v1
         with:

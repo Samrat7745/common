@@ -9,7 +9,7 @@ repos:
     rev: 0.7.22
     hooks:
       - id: mdformat
-        exclude: ^common-testing/3RD-PARTY-LICENSES/
+        exclude: ^3RD-PARTY-LICENSES/
         args:
           - --wrap
           - "80"
@@ -19,4 +19,4 @@ repos:
     rev: v0.44.0
     hooks:
       - id: markdownlint
-        exclude: ^common-testing/3RD-PARTY-LICENSES/
+        exclude: ^3RD-PARTY-LICENSES/

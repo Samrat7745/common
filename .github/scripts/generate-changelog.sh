@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Copyright (c) 2021 - for information on the respective copyright owner
+# Copyright (c) 2021-2026 - for information on the respective copyright owner
 # see the NOTICE file and/or the repository https://github.com/carbynestack/common.
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -30,37 +30,25 @@ appendGitLog() {
   echo -e "" >> $1
 }
 
-appendMavenArtifactRefs() {
-  if [ ! -f "${GITHUB_WORKSPACE}/pom.xml" ]; then
-    echo "Project is not a Maven project"
+appendGoModuleRef() {
+  if [ ! -f "${GITHUB_WORKSPACE}/go.mod" ]; then
+    echo "Project is not a Go module"
     return
   fi
 
-  maven_artifacts=($(cd ${GITHUB_WORKSPACE} && cat pom.xml| grep -E "<module>(.*)</module>" | sed 's/<.*>\(.*\)<\/.*>/\1/g'))
-
-  if [ ${#maven_artifacts[@]} -eq 0 ]; then
-    echo "No Maven modules found - apparently single module project"
-    maven_artifacts=($(cd ${GITHUB_WORKSPACE} && cat pom.xml| grep -m 1 -E "<artifactId>(.*)</artifactId>" | sed 's/<.*>\(.*\)<\/.*>/\1/g'))
-  fi
-  if [ ${#maven_artifacts[@]} -eq 0 ]; then
-    echo "No Maven artifact found"
+  module=$(cd ${GITHUB_WORKSPACE} && grep -m 1 -E "^module " go.mod | awk '{print $2}')
+  if [[ -z "${module}" ]]; then
+    echo "No Go module path found"
     return
   fi
 
-  echo -e "## Maven Artifacts\n" >> $1
-  for artifact in ${maven_artifacts[@]}; do
-    echo -e "### ${artifact}" >> $1
-    echo -e "\`\`\`xml" >> $1
-    echo -e "<dependency>" >> $1
-    echo -e "  <groupId>io.carbynestack</groupId>" >> $1
-    echo -e "  <artifactId>${artifact}</artifactId>" >> $1
-    echo -e "  <version>${VERSION}</version>" >> $1
-    echo -e "</dependency>" >> $1
-    echo -e "\`\`\`" >> $1
-  done
+  echo -e "## Go Module\n" >> $1
+  echo -e "\`\`\`shell" >> $1
+  echo -e "go get ${module}@${VERSION}" >> $1
+  echo -e "\`\`\`" >> $1
 }
 
 echo -e "# Change Log\n" > $tmpChangelog
 
 appendGitLog $tmpChangelog
-appendMavenArtifactRefs $tmpChangelog
+appendGoModuleRef $tmpChangelog

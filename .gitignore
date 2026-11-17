@@ -5,3 +5,8 @@
 
 ### Maven
 target/
+
+### Go
+*.test
+*.out
+/vendor/
